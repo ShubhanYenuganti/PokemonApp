@@ -103,6 +103,22 @@ export const pokemonService = {
     const response = await api.post(`/pokemon/${id}/favorite/`);
     return response.data;
   },
+
+
+  // loop for all pages
+  getAllForMap: async () => {
+    let allPokemon = [];
+    let page = 1;
+    while (true) {
+      const data = await pokemonService.getAll(page);
+      allPokemon = allPokemon.concat(data.results);
+      if (!data.next) {
+        break;
+      }
+      page += 1;
+    }
+    return allPokemon;
+  }
 };
 
 export default api;

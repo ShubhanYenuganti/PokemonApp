@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { authService, pokemonService } from '../services/api';
 import PokemonMap from './PokemonMap';
 import './Landing.css';
@@ -29,11 +29,18 @@ function Landing() {
   const [loadingDefaults, setLoadingDefaults] = useState(false);
   const [uploadsCount, setUploadsCount] = useState(0);
   const [defaultsCount, setDefaultsCount] = useState(0);
+
+  const [allPokemonForMap, setAllPokemonForMap] = useState([]);
+  const [loadingMapPokemon, setLoadingMapPokemon] = useState(false);
+  const mapRef = useRef();
+  
   const user = authService.getCurrentUser();
 
   useEffect(() => {
     loadUploads(1);
     loadDefaults(1);
+    // Load all Pokemon for map display
+    loadAllPokemonForMap();
   }, []);
 
   const loadUploads = async (page) => {
@@ -70,6 +77,20 @@ function Landing() {
     }
   };
 
+    // Load all Pokemon for map display
+  const loadAllPokemonForMap = async () => {
+    setLoadingMapPokemon(true);
+    try {
+      const allPokemon = await pokemonService.getAllForMap();
+      setAllPokemonForMap(allPokemon);
+    } catch (err) {
+      console.error('Load all Pokemon for map error:', err);
+      setAllPokemonForMap([]);
+    } finally {
+      setLoadingMapPokemon(false);
+    }
+  };
+
   const handleFetchPokemon = async () => {
     setFetching(true);
     setFetchMessage('');
@@ -78,6 +99,8 @@ function Landing() {
       setFetchMessage(response.message || 'Pokemon fetched successfully!');
       // Refresh the defaults list
       loadDefaults(1);
+      // Refresh map data
+      loadAllPokemonForMap();
     } catch (err) {
       console.error('Fetch error:', err);
       setFetchMessage('Error fetching Pokemon: ' + (err.response?.data?.error || err.message));
@@ -128,6 +151,12 @@ function Landing() {
   const handlePokemonClick = (pokemon) => {
     setSelectedPokemon(pokemon);
   };
+  
+  const handlePokemonSidebarClick = (pokemon) => {
+    if (pokemon.latitude && pokemon.longitude && mapRef.current) {
+      mapRef.current.flyToPokemon(pokemon);
+    }
+  };
 
   const handleToggleFavorite = async () => {
     if (!selectedPokemon) return;
@@ -168,6 +197,8 @@ function Landing() {
       setSelectedPokemon(null);
       // Show success message (could add a notification state)
       alert(`${selectedPokemon.name} has been deleted successfully`);
+      // Refresh map data
+      loadAllPokemonForMap();
     } catch (err) {
       console.error('Delete error:', err);
       alert('Error deleting Pokemon: ' + (err.response?.data?.error || err.message));
@@ -275,6 +306,8 @@ function Landing() {
       if (fileInput) fileInput.value = '';
       // Refresh the uploads list
       loadUploads(1);
+      // Refresh map data
+      loadAllPokemonForMap();
     } catch (err) {
       console.error('Upload error:', err);
       setUploadMessage('Error uploading CSV: ' + (err.response?.data?.error || err.message));
@@ -358,7 +391,7 @@ function Landing() {
                       <li 
                         key={pokemon.id} 
                         className="pokemon-item"
-                        onClick={() => handlePokemonClick(pokemon)}
+                        onClick={() => handlePokemonSidebarClick(pokemon)}
                       >
                         <div className="pokemon-info">
                           {pokemon.sprite && (
@@ -404,7 +437,7 @@ function Landing() {
                         <li 
                           key={pokemon.id} 
                           className="pokemon-item"
-                          onClick={() => handlePokemonClick(pokemon)}
+                          onClick={() => handlePokemonSidebarClick(pokemon)}
                         >
                           <div className="pokemon-info">
                             {pokemon.sprite && (
@@ -464,7 +497,7 @@ function Landing() {
                         <li 
                           key={pokemon.id} 
                           className="pokemon-item"
-                          onClick={() => handlePokemonClick(pokemon)}
+                          onClick={() => handlePokemonSidebarClick(pokemon)}
                         >
                           <div className="pokemon-info">
                             {pokemon.sprite && (
@@ -517,7 +550,22 @@ function Landing() {
           <div className="resizer" onMouseDown={handleResizeStart}></div>
 
           <div className="right-panel" style={{ width: `${100 - leftPanelWidth}%` }}>
-            <PokemonMap />
+            {loadingMapPokemon ? (
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                height: '100%' 
+              }}>
+                <div>Loading Pokemon on map...</div>
+              </div>
+            ) : (
+              <PokemonMap 
+                ref={mapRef}
+                pokemonList={allPokemonForMap}
+                onPokemonClick={handlePokemonClick}
+              />
+            )}
           </div>
         </div>
       </div>
