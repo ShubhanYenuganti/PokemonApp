@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { authService, pokemonService } from '../services/api';
+import PokemonMap from './PokemonMap';
 import './Landing.css';
 
 function Landing() {
@@ -516,9 +517,7 @@ function Landing() {
           <div className="resizer" onMouseDown={handleResizeStart}></div>
 
           <div className="right-panel" style={{ width: `${100 - leftPanelWidth}%` }}>
-            <div className="map-placeholder">
-              <p>Map will be displayed here</p>
-            </div>
+            <PokemonMap />
           </div>
         </div>
       </div>
