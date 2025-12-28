@@ -61,4 +61,48 @@ export const authService = {
   },
 };
 
+export const pokemonService = {
+  fetchFromApi: async () => {
+    const response = await api.post('/pokemon/fetch_from_api/');
+    return response.data;
+  },
+
+  search: async (query) => {
+    const response = await api.get('/pokemon/', {
+      params: { search: query }
+    });
+    return response.data.results || [];
+  },
+
+  getAll: async (page = 1, source = null) => {
+    const params = { page };
+    if (source) {
+      params.source = source;
+    }
+    const response = await api.get('/pokemon/', { params });
+    return response.data;
+  },
+
+  uploadCsv: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post('/pokemon/upload_from_csv/', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  delete: async (id) => {
+    const response = await api.delete(`/pokemon/${id}/`);
+    return response.data;
+  },
+
+  toggleFavorite: async (id) => {
+    const response = await api.post(`/pokemon/${id}/favorite/`);
+    return response.data;
+  },
+};
+
 export default api;

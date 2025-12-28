@@ -121,13 +121,25 @@ def get_moves_at_level(moves_data, level):
 def parse_csv_to_pokemon(row, user):
     """Parse CSV row to Pokemon object"""
     
+    # Parse the Latest Moves field
+    moves_str = row.get('Latest Moves', '[]')
+    if moves_str:
+        # Remove brackets and split by comma
+        moves_str = moves_str.strip()
+        if moves_str.startswith('[') and moves_str.endswith(']'):
+            moves_str = moves_str[1:-1]  # Remove [ and ]
+        # Split by comma and strip whitespace from each move
+        moves = [move.strip() for move in moves_str.split(',') if move.strip()]
+    else:
+        moves = []
+    
     return Pokemon(
         name = row['Pokemon'],
         latitude = float(row['Lat']),
         longitude = float(row['Long']),
         type_primary = row['Type'],
         location_name = row['Location'],
-        moves = json.loads(row.get('Moves', '[]')),
+        moves = moves,
         sprite = row.get('Sprite', ''),
         source = 'CSV',
         uploaded_by = user

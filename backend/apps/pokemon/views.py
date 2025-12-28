@@ -17,6 +17,28 @@ class PokemonViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'type_primary', 'type_secondary', 'category']
     
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filter by source if provided (must be before search filtering)
+        source = self.request.query_params.get('source', None)
+        if source:
+            queryset = queryset.filter(source=source.upper())
+        
+        return queryset
+    
+    def filter_queryset(self, queryset):
+        # Apply source filter first
+        source = self.request.query_params.get('source', None)
+        if source:
+            queryset = queryset.filter(source=source.upper())
+        
+        # Then apply search filter
+        for backend in list(self.filter_backends):
+            queryset = backend().filter_queryset(self.request, queryset, self)
+        
+        return queryset
+    
     def get_serializer_context(self):
         return {'request': self.request}
     
