@@ -15,7 +15,7 @@ class PokemonViewSet(viewsets.ModelViewSet):
     serializer_class = PokemonSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['name', 'type_primary', 'type_secondary']
+    search_fields = ['name', 'type_primary', 'type_secondary', 'category']
     
     def get_serializer_context(self):
         return {'request': self.request}
@@ -61,9 +61,12 @@ class PokemonViewSet(viewsets.ModelViewSet):
             # bulk create
             Pokemon.objects.bulk_create(pokemon_list)
             
+            serializer = PokemonSerializer(pokemon_list, many=True, context={'request': request})
+            
             return Response({
                 'message': f'Successfully uploaded {len(pokemon_list)} Pokemon',
-                'count': len(pokemon_list)
+                'count': len(pokemon_list),
+                'results': serializer.data
             }, status = status.HTTP_201_CREATED)
         except Exception as e:
             return Response({
@@ -86,7 +89,7 @@ class PokemonViewSet(viewsets.ModelViewSet):
             }, status = status.HTTP_200_OK)
             
         return Response({
-            'message': 'Pokemon added to favorites'
+            'message': 'Pokemon added to favorites',
         }, status = status.HTTP_201_CREATED)
     
     @action(detail = False, methods=['get'])
@@ -100,4 +103,8 @@ class PokemonViewSet(viewsets.ModelViewSet):
         
         serializer = PokemonSerializer(pokemon, many = True, context = {'request': request})
         
-        return Response(serializer.data)
+        return Response({
+            'message': 'Successfully fetched list of favorite Pokemon',
+            'count': len(favorites),
+            'results': serializer.data
+        }, status = status.HTTP_200_OK)

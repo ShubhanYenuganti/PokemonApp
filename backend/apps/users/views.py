@@ -52,6 +52,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if user:
             token, created = Token.objects.get_or_create(user=user)
             return Response({
+                'message': 'Successfully logged in',
                 'token': token.key,
                 'user': UserSerializer(user).data
             }, status=status.HTTP_200_OK)
@@ -59,4 +60,17 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({
                 'error': 'Invalid credentials'
             }, status=status.HTTP_401_UNAUTHORIZED)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def logout(self, request):
+        """Logout user by deleting their token"""
+        try:
+            request.user.auth_token.delete()
+            return Response({
+                'message': 'Successfully logged out'
+            }, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({
+                'error': 'Error logging out'
+            }, status=status.HTTP_400_BAD_REQUEST)
 

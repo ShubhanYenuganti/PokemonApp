@@ -4,6 +4,7 @@ import requests
 from .models import Pokemon
 import random
 import json
+from pathlib import Path
 
 def fetch_pokemon_from_api(limit = 100):
     """Fetch Pokemon from PokeAPI and assign coordinates"""
@@ -23,7 +24,7 @@ def fetch_pokemon_from_api(limit = 100):
             coords = assign_coordinates(data['name'], polylines)
             
             # get moves at level 60
-            moves = get_moves_at_level(data['name'], 60)
+            moves = get_moves_at_level(data['moves'], 60)
             
             pokemon = Pokemon(
                 name = data['name'].capitalize(),
@@ -63,17 +64,40 @@ def assign_coordinates(pokemon_name, polylines):
     # Random point within polyline
     return get_random_point_in_polygon(polyline)
 
-def get_random_point_in_polygon(polygon):
-    """Get random point within a polyline"""
-    # Implementation depends on your polyline format
-    # Bsaic bounding box approach for now
+def get_random_point_in_polygon(polyline_data):
+    """Get random point within a polyline bounding box"""
+    # Polyline data is a GeoJSON MultiLineString with structure:
+    # {
+    #   "type": "MultiLineString",
+    #   "coordinates": [[[lon, lat], [lon, lat], ...], ...]
+    # }
     
-    lats = [point[0] for point in polygon]
-    lngs = [point[1] for point in polygon]
+    if not polyline_data or 'coordinates' not in polyline_data:
+        # Fallback to default coordinates if polyline is invalid
+        return {'latitude': 37.7749, 'longitude': -122.4194}
     
+    coordinates = polyline_data['coordinates']
+    
+    # Flatten all coordinates from all line strings
+    # GeoJSON format is [longitude, latitude]
+    all_lons = []
+    all_lats = []
+    
+    for line_string in coordinates:
+        for point in line_string:
+            # Point format: [longitude, latitude]
+            lon, lat = point[0], point[1]
+            all_lons.append(lon)
+            all_lats.append(lat)
+    
+    if not all_lats or not all_lons:
+        # Fallback if no coordinates found
+        return {'latitude': 37.7749, 'longitude': -122.4194}
+    
+    # Generate random point within bounding box
     return {
-        'lat': random.uniform(min(lats), max(lats)),
-        'lng': random.uniform(min(lngs), max(lngs))
+        'latitude': random.uniform(min(all_lats), max(all_lats)),
+        'longitude': random.uniform(min(all_lons), max(all_lons))
     }
     
 def get_moves_at_level(moves_data, level):
@@ -112,8 +136,8 @@ def parse_csv_to_pokemon(row, user):
 def load_polylines():
     """Load polyline data from files"""
     polylines = {}
-    with open('backend/apps/pokemon/data/polylines_A-J.json', 'r') as f:
+    with open(Path(__file__).resolve().parent / 'data' / 'polylines_A-J.json', 'r') as f:
         polylines['A-J'] = json.load(f)
-    with open('backend/apps/pokemon/data/polylines_K-Z.json', 'r') as f:
+    with open(Path(__file__).resolve().parent / 'data' / 'polylines_K-Z.json', 'r') as f:
         polylines['K-Z'] = json.load(f)
     return polylines
