@@ -33,6 +33,11 @@ function Landing() {
   const [allPokemonForMap, setAllPokemonForMap] = useState([]);
   const [loadingMapPokemon, setLoadingMapPokemon] = useState(false);
   const mapRef = useRef();
+  const [distanceFromHome, setDistanceFromHome] = useState(null);
+  const [energyLevel, setEnergyLevel] = useState(null);
+  const [energyTimestamp, setEnergyTimestamp] = useState(null);
+  const [energyFactors, setEnergyFactors] = useState(null);
+  const wsRef = useRef(null);
   
   const user = authService.getCurrentUser();
 
@@ -42,6 +47,51 @@ function Landing() {
     // Load all Pokemon for map display
     loadAllPokemonForMap();
   }, []);
+  
+  // WebSocket effect for energy level updates
+  useEffect(() => {
+    if (selectedPokemon) {
+      // Connect to WebSocket for energy updates
+      const token = localStorage.getItem('token');
+      const wsUrl = `ws://localhost:8000/ws/pokemon/${selectedPokemon.id}/energy/`;
+      
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected for energy updates');
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.energy_level !== undefined) {
+          setEnergyLevel(data.energy_level);
+          setEnergyTimestamp(data.timestamp);
+          setEnergyFactors(data.factors || null);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket disconnected');
+      };
+      
+      // Cleanup on unmount or when Pokemon changes
+      return () => {
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
+      };
+    } else {
+      // Reset energy when no Pokemon is selected
+      setEnergyLevel(null);
+      setEnergyTimestamp(null);
+    }
+  }, [selectedPokemon]);
 
   const loadUploads = async (page) => {
     setLoadingUploads(true);
@@ -177,7 +227,50 @@ function Landing() {
   };
 
   const closeModal = () => {
+    // Close WebSocket connection if open
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
     setSelectedPokemon(null);
+    setDistanceFromHome(null);
+    setEnergyLevel(null);
+    setEnergyTimestamp(null);
+    setEnergyFactors(null);
+  };
+  
+  // Haversine formula to calculate distance between two coordinates
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radius of Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    return distance;
+  };
+  
+  const handleDistanceFromHome = () => {
+    if (!selectedPokemon || !selectedPokemon.latitude || !selectedPokemon.longitude) {
+      alert('This Pokemon does not have location data!');
+      return;
+    }
+    
+    // UCLA campus coordinates
+    const UCLA_LAT = 34.0689;
+    const UCLA_LON = -118.4452;
+    
+    const distance = calculateDistance(
+      selectedPokemon.latitude,
+      selectedPokemon.longitude,
+      UCLA_LAT,
+      UCLA_LON
+    );
+    
+    setDistanceFromHome(distance);
   };
 
   const handleDeletePokemon = async () => {
@@ -652,6 +745,103 @@ function Landing() {
               </div>
 
               <div className="modal-section">
+                <h3>⚡ Energy Level</h3>
+                {energyLevel !== null ? (
+                  <div style={{ marginTop: '10px' }}>
+                    <div style={{
+                      width: '100%',
+                      height: '30px',
+                      backgroundColor: '#e0e0e0',
+                      borderRadius: '15px',
+                      overflow: 'hidden',
+                      position: 'relative'
+                    }}>
+                      <div style={{
+                        width: `${energyLevel}%`,
+                        height: '100%',
+                        backgroundColor: energyLevel > 70 ? '#4caf50' : energyLevel > 40 ? '#ff9800' : '#f44336',
+                        transition: 'width 0.5s ease, background-color 0.5s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <span style={{
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '14px',
+                          textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+                        }}>
+                          {energyLevel.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                    {energyTimestamp && (
+                      <div style={{
+                        marginTop: '5px',
+                        fontSize: '12px',
+                        color: '#666',
+                        fontStyle: 'italic'
+                      }}>
+                        Last updated: {new Date(energyTimestamp).toLocaleTimeString()}
+                      </div>
+                    )}
+                    <div style={{
+                      marginTop: '15px',
+                      padding: '12px',
+                      backgroundColor: '#f5f5f5',
+                      borderRadius: '6px',
+                      borderLeft: '4px solid #2196F3'
+                    }}>
+                      <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
+                        📊 Current Energy Factors:
+                      </div>
+                      {energyFactors ? (
+                        <div style={{ fontSize: '12px', lineHeight: '1.8' }}>
+                          <div>
+                            <strong>Weather:</strong> {energyFactors.weather} 
+                            {energyFactors.weather_modifier !== 0 && (
+                              <span style={{ color: energyFactors.weather_modifier < 0 ? '#f44336' : '#4caf50' }}>
+                                ({energyFactors.weather_modifier > 0 ? '+' : ''}{energyFactors.weather_modifier}%)
+                              </span>
+                            )}
+                          </div>
+                          {energyFactors.temperature !== null && (
+                            <div>
+                              <strong>Temperature:</strong> {energyFactors.temperature}°C
+                              {energyFactors.temp_modifier !== 0 && (
+                                <span style={{ color: energyFactors.temp_modifier < 0 ? '#f44336' : '#4caf50' }}>
+                                  ({energyFactors.temp_modifier > 0 ? '+' : ''}{energyFactors.temp_modifier}%)
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div>
+                            <strong>Near Route:</strong> {energyFactors.near_route ? 'Yes ✓' : 'No ✗'}
+                            {energyFactors.location_modifier !== 0 && (
+                              <span style={{ color: '#f44336' }}>
+                                ({energyFactors.location_modifier}%)
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ marginTop: '6px', fontSize: '11px', color: '#666', fontStyle: 'italic' }}>
+                            💡 Base energy (100%) with ±20% variance applied
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#666' }}>
+                          Loading factor data...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontStyle: 'italic', color: '#666' }}>
+                    Connecting to energy monitor...
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-section">
                 <h3>Moves</h3>
                 <div className="moves-list">
                   {selectedPokemon.moves && [...new Set(selectedPokemon.moves)].map((move, idx) => (
@@ -667,11 +857,35 @@ function Landing() {
                   {selectedPokemon.location_name && (
                     <p><strong>Name:</strong> {selectedPokemon.location_name}</p>
                   )}
+                  {distanceFromHome !== null && (
+                    <p style={{ marginTop: '10px', padding: '10px', backgroundColor: '#e8f4f8', borderRadius: '4px' }}>
+                      <strong>🏠 Distance from UCLA:</strong> {distanceFromHome.toFixed(2)} km ({(distanceFromHome * 0.621371).toFixed(2)} miles)
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
             <div className="modal-footer">
+              {selectedPokemon.latitude && selectedPokemon.longitude && (
+                <button 
+                  className="distance-button" 
+                  onClick={handleDistanceFromHome}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#2196F3',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    marginRight: '10px',
+                    fontSize: '14px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  🏠 How far am I from home?
+                </button>
+              )}
               <button className="delete-button" onClick={handleDeletePokemon}>
                 Delete Pokemon
               </button>

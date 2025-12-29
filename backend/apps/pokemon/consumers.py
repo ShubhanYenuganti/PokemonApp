@@ -155,11 +155,12 @@ class PokemonEnergyConsumer(AsyncWebsocketConsumer):
         while True:
             try:
                 # Calculate energy based on weather
-                energy_level = await self.calculate_energy_level()
+                energy_data = await self.calculate_energy_level()
                 
                 await self.send(text_data=json.dumps({
-                    'energy_level': energy_level,
-                    'timestamp': datetime.now().isoformat()
+                    'energy_level': energy_data['energy_level'],
+                    'timestamp': datetime.now().isoformat(),
+                    'factors': energy_data['factors']
                 }))
                 
                 await asyncio.sleep(5)  # update every 5 seconds
@@ -190,7 +191,17 @@ class PokemonEnergyConsumer(AsyncWebsocketConsumer):
         
         if not api_key:
             # Return default energy with polyline modifier if API key is not set
-            return 100.0 * polyline_modifier
+            return {
+                'energy_level': 100.0 * polyline_modifier,
+                'factors': {
+                    'weather': 'clear',
+                    'temperature': None,
+                    'near_route': is_near_polyline,
+                    'weather_modifier': 0,
+                    'temp_modifier': 0,
+                    'location_modifier': -15 if not is_near_polyline else 0
+                }
+            }
         
         # Fetch weather from OpenWeatherMap API
         try:
@@ -205,41 +216,79 @@ class PokemonEnergyConsumer(AsyncWebsocketConsumer):
                         temperature = weather_data['main']['temp']
                         
                         # Calculate energy based on weather
-                        energy_level = self.calculate_energy_based_on_weather(
-                            weather_description, temperature, polyline_modifier
+                        result = self.calculate_energy_based_on_weather(
+                            weather_description, temperature, polyline_modifier, is_near_polyline
                         )
-                        return energy_level
+                        return result
                     else:
                         # Return default energy with polyline modifier if API call fails
-                        return 100.0 * polyline_modifier
+                        return {
+                            'energy_level': 100.0 * polyline_modifier,
+                            'factors': {
+                                'weather': 'unknown',
+                                'temperature': None,
+                                'near_route': is_near_polyline,
+                                'weather_modifier': 0,
+                                'temp_modifier': 0,
+                                'location_modifier': -15 if not is_near_polyline else 0
+                            }
+                        }
         except Exception:
             # Return default energy with polyline modifier on any error
-            return 100.0 * polyline_modifier
+            return {
+                'energy_level': 100.0 * polyline_modifier,
+                'factors': {
+                    'weather': 'unknown',
+                    'temperature': None,
+                    'near_route': is_near_polyline,
+                    'weather_modifier': 0,
+                    'temp_modifier': 0,
+                    'location_modifier': -15 if not is_near_polyline else 0
+                }
+            }
             
-    def calculate_energy_based_on_weather(self, weather_description, temperature, polyline_modifier=1.0):
+    def calculate_energy_based_on_weather(self, weather_description, temperature, polyline_modifier=1.0, is_near_polyline=True):
         """Calculate energy based on weather with +/- 20% variance and polyline proximity"""
         
         # Base energy level (100)
         base_energy = 100
         
         # Weather energy modifiers
+        weather_modifier = 0
         if 'rain' in weather_description.lower():
             energy_modifier = 0.8  # -20% energy
+            weather_modifier = -20
         elif 'snow' in weather_description.lower():
             energy_modifier = 0.9  # -10% energy
+            weather_modifier = -10
         else:
             energy_modifier = 1.0  # no change
             
         # Temperature energy modifiers
+        temp_modifier = 0
         if temperature < 0:
             energy_modifier *= 0.9  # -10% energy
+            temp_modifier = -10
         elif temperature > 30:
             energy_modifier *= 1.1  # +10% energy
+            temp_modifier = 10
         
         # Apply polyline modifier
+        location_modifier = 0 if is_near_polyline else -15
         energy_modifier *= polyline_modifier
             
         # Calculate final energy level
         # +/- 20% variance
         final_energy = base_energy * energy_modifier * random.uniform(0.8, 1.2)
-        return max(0, min(final_energy, 100))  # clamp between 0 and 100
+        
+        return {
+            'energy_level': max(0, min(final_energy, 100)),  # clamp between 0 and 100
+            'factors': {
+                'weather': weather_description,
+                'temperature': round(temperature, 1),
+                'near_route': is_near_polyline,
+                'weather_modifier': weather_modifier,
+                'temp_modifier': temp_modifier,
+                'location_modifier': location_modifier
+            }
+        }
