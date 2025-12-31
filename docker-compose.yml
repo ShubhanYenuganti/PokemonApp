@@ -10,10 +10,8 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-    environment:
-      - DEBUG=True
-      - SECRET_KEY=your-secret-key-change-in-production
-      - ALLOWED_HOSTS=localhost,127.0.0.1,backend
+    env_file:
+      - .env
     networks:
       - pokemon-network
     restart: unless-stopped
