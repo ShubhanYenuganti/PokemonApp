@@ -50,3 +50,13 @@ docker-compose exec backend python manage.py migrate
 ```
 
 This creates the database tables needed for the application.
+
+### Step 6: Create a Superuser (Optional)
+
+To access the Django admin panel, you can create a superuser account:
+
+```bash
+docker-compose exec backend python manage.py createsuperuser
+```
+
+Follow the prompts to enter a username, email (optional), and password. Once created, you can access the admin panel at [http://localhost:8000/admin](http://localhost:8000/admin).

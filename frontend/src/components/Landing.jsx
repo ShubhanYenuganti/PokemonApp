@@ -182,6 +182,10 @@ function Landing({ allPokemon = [], loadingPokemon = false, onPokemonUpdate }) {
       setSearchResults(searchResults.map(p => 
         p.id === selectedPokemon.id ? updatedPokemon : p
       ));
+      // Trigger parent update to refresh allPokemon
+      if (onPokemonUpdate) {
+        onPokemonUpdate();
+      }
     } catch (err) {
       console.error('Toggle favorite error:', err);
       alert('Error toggling favorite: ' + (err.response?.data?.error || err.message));
