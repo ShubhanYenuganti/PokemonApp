@@ -1,4 +1,4 @@
-# Setup Guide for PokemonFinder
+# Setup Guide for PokemonApp
 
 ## Quick Start (First Time Setup)
 
@@ -8,7 +8,7 @@ If you haven't already, clone your forked repository:
 
 ```bash
 git clone <your-forked-repo-url>
-cd PokemonFinder
+cd PokemonApp
 ```
 
 ### Step 2: Create Environment Variables File
