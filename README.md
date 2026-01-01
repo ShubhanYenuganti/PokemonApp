@@ -1,4 +1,4 @@
-# Docker Setup Guide for PokemonFinder
+# Setup Guide for PokemonFinder
 
 ## Quick Start (First Time Setup)
 
