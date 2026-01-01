@@ -130,3 +130,19 @@ class PokemonViewSet(viewsets.ModelViewSet):
             'count': len(favorites),
             'results': serializer.data
         }, status = status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def all_for_map(self, request):
+        """Get all Pokemon in a single request for map display"""
+        try:
+            pokemon_list = Pokemon.objects.all()
+            serializer = PokemonSerializer(pokemon_list, many=True, context={'request': request})
+            
+            return Response({
+                'count': len(serializer.data),
+                'results': serializer.data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

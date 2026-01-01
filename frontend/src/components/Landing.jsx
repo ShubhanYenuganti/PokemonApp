@@ -3,10 +3,8 @@ import { authService, pokemonService } from '../services/api';
 import PokemonMap from './PokemonMap';
 import './Landing.css';
 
-function Landing() {
+function Landing({ allPokemon = [], loadingPokemon = false, onPokemonUpdate }) {
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(false);
-  const [fetchMessage, setFetchMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -30,8 +28,6 @@ function Landing() {
   const [uploadsCount, setUploadsCount] = useState(0);
   const [defaultsCount, setDefaultsCount] = useState(0);
 
-  const [allPokemonForMap, setAllPokemonForMap] = useState([]);
-  const [loadingMapPokemon, setLoadingMapPokemon] = useState(false);
   const mapRef = useRef();
   const [distanceFromHome, setDistanceFromHome] = useState(null);
   const [energyLevel, setEnergyLevel] = useState(null);
@@ -44,8 +40,6 @@ function Landing() {
   useEffect(() => {
     loadUploads(1);
     loadDefaults(1);
-    // Load all Pokemon for map display
-    loadAllPokemonForMap();
   }, []);
   
   // WebSocket effect for energy level updates
@@ -124,38 +118,6 @@ function Landing() {
       setDefaultsList([]);
     } finally {
       setLoadingDefaults(false);
-    }
-  };
-
-    // Load all Pokemon for map display
-  const loadAllPokemonForMap = async () => {
-    setLoadingMapPokemon(true);
-    try {
-      const allPokemon = await pokemonService.getAllForMap();
-      setAllPokemonForMap(allPokemon);
-    } catch (err) {
-      console.error('Load all Pokemon for map error:', err);
-      setAllPokemonForMap([]);
-    } finally {
-      setLoadingMapPokemon(false);
-    }
-  };
-
-  const handleFetchPokemon = async () => {
-    setFetching(true);
-    setFetchMessage('');
-    try {
-      const response = await pokemonService.fetchFromApi();
-      setFetchMessage(response.message || 'Pokemon fetched successfully!');
-      // Refresh the defaults list
-      loadDefaults(1);
-      // Refresh map data
-      loadAllPokemonForMap();
-    } catch (err) {
-      console.error('Fetch error:', err);
-      setFetchMessage('Error fetching Pokemon: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setFetching(false);
     }
   };
 
@@ -290,8 +252,10 @@ function Landing() {
       setSelectedPokemon(null);
       // Show success message (could add a notification state)
       alert(`${selectedPokemon.name} has been deleted successfully`);
-      // Refresh map data
-      loadAllPokemonForMap();
+      // Refresh map data via callback
+      if (onPokemonUpdate) {
+        onPokemonUpdate();
+      }
     } catch (err) {
       console.error('Delete error:', err);
       alert('Error deleting Pokemon: ' + (err.response?.data?.error || err.message));
@@ -399,8 +363,10 @@ function Landing() {
       if (fileInput) fileInput.value = '';
       // Refresh the uploads list
       loadUploads(1);
-      // Refresh map data
-      loadAllPokemonForMap();
+      // Refresh map data via callback
+      if (onPokemonUpdate) {
+        onPokemonUpdate();
+      }
     } catch (err) {
       console.error('Upload error:', err);
       setUploadMessage('Error uploading CSV: ' + (err.response?.data?.error || err.message));
@@ -643,7 +609,7 @@ function Landing() {
           <div className="resizer" onMouseDown={handleResizeStart}></div>
 
           <div className="right-panel" style={{ width: `${100 - leftPanelWidth}%` }}>
-            {loadingMapPokemon ? (
+            {loadingPokemon ? (
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'center', 
@@ -655,7 +621,7 @@ function Landing() {
             ) : (
               <PokemonMap 
                 ref={mapRef}
-                pokemonList={allPokemonForMap}
+                pokemonList={allPokemon}
                 onPokemonClick={handlePokemonClick}
               />
             )}

@@ -104,20 +104,10 @@ export const pokemonService = {
     return response.data;
   },
 
-
-  // loop for all pages
+  // Get all Pokemon in a single request
   getAllForMap: async () => {
-    let allPokemon = [];
-    let page = 1;
-    while (true) {
-      const data = await pokemonService.getAll(page);
-      allPokemon = allPokemon.concat(data.results);
-      if (!data.next) {
-        break;
-      }
-      page += 1;
-    }
-    return allPokemon;
+    const response = await api.get('/pokemon/all_for_map/');
+    return response.data.results || [];
   }
 };
 
